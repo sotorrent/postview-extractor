@@ -13,30 +13,35 @@ import static java.util.function.Predicate.not;
 
 class PostViewExtractor {
 	public static void main(String[] args) {
-	    // read properties
+	    // prevents JAXP00010004: The accumulated size of entities is "50.000.001" that exceeded the "50.000.000" limitset by "FEATURE_SECURE_PROCESSING".
+        System.setProperty("jdk.xml.totalEntitySizeLimit", String.valueOf(Integer.MAX_VALUE));
+
+        System.out.println("Reading properties...");
         Properties properties = new Properties();
         try {
             properties.load(new FileInputStream("config.properties"));
         } catch (IOException e) {
             e.printStackTrace();
         }
-        String inputFile = properties.getProperty("OutputFile");
-        String outputFile = properties.getProperty("InputFile");
+        String inputFile = properties.getProperty("InputFile");
+        String outputFile = properties.getProperty("OutputFile");
         boolean extractTags = Boolean.parseBoolean(properties.getProperty("ExtractTags"));
+        if (extractTags) {
+            System.out.println("Tag extraction activated.");
+        }
         String delimiter = properties.getProperty("Delimiter");
 
+        System.out.println("Reading view counts from " + inputFile + ", writing output to " + outputFile + "...");
         XMLInputFactory factory = XMLInputFactory.newInstance();
-
-        // extract view count (optionally including tags) from input XML file and write value to output CSV file
-		try (PrintWriter printWriter = new PrintWriter(new FileWriter(inputFile))) {
+		try (PrintWriter printWriter = new PrintWriter(new FileWriter(outputFile))) {
             // add CSV header
 		    if (extractTags) {
-                printWriter.println("Id,ViewCount,Tag");
+                printWriter.print("PostId,ViewCount,Tag\n");
             } else {
-                printWriter.println("Id,ViewCount");
+                printWriter.print("PostId,ViewCount\n");
             }
 
-            XMLEventReader xml = factory.createXMLEventReader(new StreamSource(new File(outputFile)));
+            XMLEventReader xml = factory.createXMLEventReader(new StreamSource(new File(inputFile)));
 
             while (xml.hasNext()) {
                 XMLEvent event = xml.nextEvent();
@@ -64,16 +69,16 @@ class PostViewExtractor {
                             .filter(not(String::isEmpty))
                             .toArray(String[]::new);
                     for (String tag : tags) {
-                        printWriter.printf("%s%s%s%s%s", id, delimiter, viewCount, delimiter, tag);
-                        printWriter.println();
+                        printWriter.printf("%s%s%s%s%s\n", id, delimiter, viewCount, delimiter, tag);
                     }
                 } else {
-                    printWriter.printf("%s%s%s", id, delimiter, viewCount);
-                    printWriter.println();
+                    printWriter.printf("%s%s%s\n", id, delimiter, viewCount);
                 }
             }
 		} catch (IOException | XMLStreamException e) {
 			e.printStackTrace();
 		}
+
+        System.out.println("Done.");
     }
 }
